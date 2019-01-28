@@ -471,7 +471,7 @@ class command(oauth):
                 res = post(url='%s%s' % (self.url.format(id_s=id_s), path), headers=headers)
                 data = res.json()['response']
             except:
-                raise 'could not stop hvac'
+                raise 'could not start hvac'
             return data
 
         def stop_hvac(self, id_s=None, path='/auto_conditioning_stop'):
