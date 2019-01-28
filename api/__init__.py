@@ -1,77 +1,56 @@
 import os
-import requests
-from configparser import SafeConfigParser
+from .vehicle import vehicle
 
-cfg = SafeConfigParser()
-cfg.read(os.path.normpath(os.sep.join([os.sep.join([os.path.dirname(__file__), '..', 'default.cfg'])])))
-env = {'un': os.environ.get('TESLA_EMAIL'), 'pw': os.environ.get('TESLA_PASSWORD')}
-url = 'https://%s' % cfg.get('owner_api', 'base_url')
+cfg_file = os.path.normpath(os.sep.join([os.sep.join([os.path.dirname(__file__), '..', 'default.cfg'])]))
 
 class Tesla(object):
-    def __init__(self, username=env.get('un'), password=env.get('pw'),
-                 client_id=cfg.get('owner_api', 'client_id'), client_secret=cfg.get('owner_api', 'client_secret')):
-        self._token = {}
-        self.get_access_token()
-        self.headers = {
-            "Authorization": "Bearer {access_token}".format(access_token=self._token.get('access_token')),
-            "User-Agent": "iluvelon; GitHub (jkubo); LinkedIn (jaykubo);"
-        }
-        # self.refresh_token()
-        self.get_vehicles()
-        # self.vehicle_ids
-        self.vehicle_data = {}
-
-    # AUTH
-    def get_access_token(self, path='/oauth/token'):
+    def __init__(self):
+        self.selected = None
+        self.api = vehicle(cfg_file)
+        try:
+            self.api.get_access_token()
+            self.api.get_vehicles()
+        except:
+            raise
+    
+    def oauth(self):
         """
-        POST /oauth/token?grant_type=password
+        Refreshes the OAuth tokens
+
+        Note: Needs to be authenticated via `Tesla.vehicle.get_access_token` first
         """
-        try:
-            self._token.update(requests.post(url='%s%s' % (url, path), data={
-                'grant_type': 'password',
-                'client_id': cfg.get('owner_api', 'client_id'),
-                'client_secret': cfg.get('owner_api', 'client_secret'),
-                'email': env.get('un'),
-                'password': env.get('pw')
-            }).json())
-        except:
-            raise 'invalid credentials'
-        return self._token
+        return self.api.refresh_token()
 
-    def refresh_token(self, path='/oauth/token'):
+    def list(self):
         """
-        POST /oauth/token?grant_type=refresh_token
+        Lists all the vehicle ids available
         """
-        try:
-            self._token.update(requests.post(url='%s%s' % (url, path), data={
-                'grant_type': 'refresh_token',
-                'client_id': cfg.get('owner_api', 'client_id'),
-                'client_secret': cfg.get('owner_api', 'client_secret'),
-                'refresh_token': self._token.get('refresh_token')
-            }).json())
-        except:
-            raise 'unknown issue'
-        return self._token
+        self.oauth()
+        return list(self.api.vehicles.keys())
 
-    # VEHICLE/S
-    def get_vehicles(self, path='/api/1/vehicles'):
-        try:
-            self.vehicles = requests.get(url='%s%s' % (url, path), headers=self.headers).json()['response']
-            self.vehicle_ids = dict({v['id_s']:v for v in self.vehicles})
-        except:
-            raise 'could not retrieve vehicles'
-        return self.vehicles
+    def set(self, id_s=None):
+        """
+        Sets the vehicle id to be used in subsequent API requests
 
-    def get_vehicle(self, id_s, path='/api/1/vehicles/{id_s}'):
-        try:
-            self.vehicle_ids[id_s] = requests.get(url='%s%s' % (url, path.format(id_s=id_s)), headers=self.headers).json()['response']
-        except:
-            raise 'could not retrieve vehicle %s' % id_s
-        return self.vehicle_ids[id_s]
+        :param id_s: string of vehicle id
 
-    def get_vehicle_data(self, id_s, path='/api/1/vehicles/{id_s}/vehicle_data'):
-        try:
-            self.vehicle_data[id_s] = requests.get(url='%s%s' % (url, path.format(id_s=id_s)), headers=self.headers).json()['response']
-        except:
-            raise 'could not retrieve vehicle data %s' % id_s
-        return self.vehicle_data[id_s]
+        Note: Alias function for `Tesla.vehicle.set_vehicle`
+        """
+        if id_s is None:
+            return self.selected
+        self.selected = id_s
+        self.oauth()
+        return self.api.set_vehicle(self.selected)
+    
+    def get(self, id_s=None):
+        """
+        Gets the vehicle id data
+
+        :param id_s: string of vehicle id
+        """
+        if id_s is None:
+            id_s = self.selected
+        if id_s is None:
+            raise 'vehicle id not provided nor set'
+        self.oauth()
+        return self.api.get_vehicle(id_s)
