@@ -23,7 +23,7 @@ Below are some examples to set environments in different shells:
 ```
 
 ### tcsh
-```sh
+```sh｀
     setenv TESLA_EMAIL "jaykubo@outlook.com"
     setenv TESLA_PASSWORD "i<3elon"
 ```
@@ -92,4 +92,3 @@ For more information, check the reference: https://tesla-api.timdorr.com/
 ## todo
 1) finish summary in `data_request`
 2) better testing without external dependencies
-3) support python 2
